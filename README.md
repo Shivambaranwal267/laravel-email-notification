@@ -1,59 +1,72 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+1. How will you avoid sending emails to bots?
+Ans:- Validate Email Addresses on Signup: Syntax check, Domain check, MX record check
+you can use packages like egulias/email-validator
+ or Laravel’s built-in email validation with a custom rule for disposable domains.
+$request->validate([
+    'email' => ['required', 'email', 'not_disposable']
+]);
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Using Google Captcha and email verification
+Use Google reCAPTCHA v2/v3 or hCaptcha to prevent bots from submitting forms automatically.
 
-## About Laravel
+This ensures only human users get added to your database and, consequently, your email list.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+<form method="POST">
+    @csrf
+    <input type="email" name="email">
+    <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
+    <button type="submit">Submit</button>
+</form>
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+2. Where will you store the time thresholds (config / .env)?
+Ans:- For storing time thresholds like “wait 10 minutes before sending an abandoned cart email” or “expire a token after X minutes.
+a).env File
 
-## Learning Laravel
+Use case: When the threshold might change per environment (local, staging, production) and you want non-hardcoded values.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Example:
+ABANDONED_CART_EMAIL_DELAY=10   # in minutes
+SESSION_EXPIRE_TIME=30          # in minutes
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+$delay = env('ABANDONED_CART_EMAIL_DELAY', 10); // default 10 minutes
 
-## Laravel Sponsors
+b)config/*.php File
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Use case: When thresholds are part of the app logic and won’t change per environment frequently.
 
-### Premium Partners
+Example: config/cart.php
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+ 'abandoned_email_delay' => 10, 
+'cart_expire_time' => 60,      
 
-## Contributing
+$delay = config('cart.abandoned_email_delay');
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+3)Show how you would test both features.
+Ans:- you mean the abandoned cart email feature and the stay-in-funnel 10-minutes timer email feature:-
+1. Setup SMPT or Driver mail
+2.env
+3.Test the Mailable by using tinker
+this is manually command :- php artisan cart:send-email
+4. php artisan schedule:work
 
-## Code of Conduct
+Send an email if a logged-in user stays 10 minutes on the page
+its a script file for help mail
+@if(auth()->check())
+setTimeout(() => {
+    fetch("{{ route('api.user.help_email') }}", {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    }).then(res => res.json()).then(console.log);
+}, 10 * 60 * 1000); // 10 minutes
+@endif
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+by using routes
+Route::post('/api/user/help_email', function() {
+    Mail::to(auth()->user()->email)->send(new OrderMail(['name' => auth()->user()->name]));
+    return response()->json(['status' => 'email sent']);
+})->name('api.user.help_email')->middleware('auth');
