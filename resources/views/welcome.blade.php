@@ -58,8 +58,7 @@
                                         <td>
                                             <a href="{{ route('cart.add', $item->id) }}" class="btn btn-warning">Add to
                                                 Cart</a>
-                                            <a href="#" class="btn btn-primary">Edit</a>
-                                            <button class="btn btn-danger">Delete</button>
+                                            
                                         </td>
 
                                     </tr>
