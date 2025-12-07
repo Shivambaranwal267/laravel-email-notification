@@ -2,24 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\OrderMail;
 use App\Models\Product;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\OrderMail;
-
 
 class ProductController extends Controller
 {
-
-    public function index() {
+    public function index()
+    {
         $products = Product::latest()->get();
+
         return view('welcome', compact('products'));
     }
 
     public function StoreProduct(Request $request)
     {
-
         $image = $request->file('product_image');
 
         $fileName = time().'.'.$image->getClientOriginalName();
@@ -34,18 +33,16 @@ class ProductController extends Controller
             'created_at' => Carbon::now(),
         ]);
 
-        /// Send Mail Notifications starts
+        // / Send Mail Notifications
         $data = [
             'email' => $request->email,
             'product_name' => $request->product_name,
             'price' => $request->price,
-            'product_image' => $save_url
+            'product_image' => $save_url,
         ];
 
+        // Use $request->email instead of $cart->email
         Mail::to($request->email)->send(new OrderMail($data));
-
-
-
 
         return redirect()->back()->with('success', 'Product Added Successfully');
     }
